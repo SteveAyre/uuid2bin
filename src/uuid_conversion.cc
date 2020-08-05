@@ -1,9 +1,11 @@
 //https://mariadb.com/kb/en/library/guiduuid-performance/
 //https://www.percona.com/blog/2014/12/19/store-uuid-optimized-way/
 
+#include <stdint.h>
+#include <string.h>
+#include <string>
 #include <mysql/mysql.h>
 #include <mysql/my_global.h>
-#include <string>
 
 #ifdef HAVE_DLOPEN
 
