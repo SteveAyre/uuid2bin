@@ -7,27 +7,36 @@ MySQL UDF functions implemented in C++ for storing UUID's in the optimal way as 
 MySQL 8.0 has implemented these functions. These UDF functions provide the same functionality for earlier versions, and for MariaDB which is planning to [not implement][6] these functions in favour of a [UUID data type][7]. Once those changes are made these functions may not be needed if they provide these function names as syntactic sugar around the CAST syntax.
 
 As described in the above articles there are few problems with UUID:
-- UUID has 36 characters which makes it bulky.
-- InnoDB stores data in the PRIMARY KEY order and all the secondary keys also contain PRIMARY KEY. So having UUID as PRIMARY KEY makes the index bigger which can not be fit into the memory
-- Inserts are random and the data is scattered.
+* UUID has 36 characters which makes it bulky.
+  * Storing it in hexadecimal form is more user-friendly but requires double the space.
+* If the primary key is a UUID all secondary indexes contain a full copy of the primary key.
+  * So this extra space requirement is repeated several times over.
+* Indexed UUIDs are randomly scattered throughout the indexes.
+  * Searching for data closely related in time must search pages spread across the entire tablespace. This means more pages are accessed than can fit in the cache and disk I/O is greatly increased.
+  * Data is ordered by the primary key so accessing the row has the same issue.
 
-The articles explains how to store UUID in an efficient way by re-arranging timestamp part of UUID.
+The articles explains how to store UUID in an efficient way by converting to BINARY(16) to save space, and to give greater performance on indexed v1/v2 UUIDs by clustering indexes in timestamp order by re-arranging the timestamp bytes.
 
-#### API
+However v4 UUIDs are completely random with no timestamp component so cannot benefit from timestamp reordering. These UUIDs can still be reordered for storage, but it has a performance cost to perform the byte swap with no benefit.
+
+#### Functions
 
 This module includes two functions to convert a UUID into the ordered binary format and the other way around.
 
 The functions are:
 - `is_uuid` - check if a string is a valid UUID of the 3 formats supported by MySQL 8.0
-- `uuid_to_bin` - convert a uuid string into the binary format, optionally performing timestamp bit swapping
-- `bin_to_uuid` - convert the binary format into the uuid string, optionally performing timestamp bit swapping
+- `uuid_to_bin(string)` `uuid_to_bin(string, swap_flag)` - convert a uuid string into the binary format, optionally reordering the timestamp if swap_flag is 1
+- `bin_to_uuid(string)` `bin_to_uuid(string, swap_flag)` - convert the binary format into the uuid string, optionally reordering the timestamp if swap_flag is 1
 
 The output of bin_to_uuid is the dashed format to be compatible with the MySQL 8.0 version.
 
+Note that all these functions are deterministic.
+
 #### Compilation
 
-Just run `make` in the project root. This should work on linux and Mac OS X. Compiling scripts are not
-tested for other platforms.
+Just run `make` in the project root.
+
+This should work on linux and Mac OS X. Compiling scripts are not tested for other platforms.
 
 #### Installation
 
@@ -119,7 +128,7 @@ SELECT BENCHMARK(@loops, UuidFromBin(UuidToBin(@uuid)));
 
 As expected the UDF versions are much faster than the stored functions. They are also a third of the speed of the earlier implementation.
 
-Timestamp bit swapping understandably incurs a performance penalty of ~5%. However the greatly improved index performance should more than compensate for this.
+Timestamp byte swapping understandably incurs a performance penalty of ~5%. However the greatly improved index performance should more than compensate for this.
 
 [1]:https://mariadb.com/kb/en/library/guiduuid-performance/
 [2]:https://www.percona.com/blog/2014/12/19/store-uuid-optimized-way/
