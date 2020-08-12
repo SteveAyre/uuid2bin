@@ -1,10 +1,12 @@
 # MySQL uuid to binary UDF functions
 
-### General info
+### Genera]l info
 
-MySQL UDF functions implemented in C++ for storing UUID's in the optimal way as described in [MariaDB blog][1] and [Percona blog][2].
+MySQL UDF functions for storing UUID's in the optimal way as described in [MariaDB blog][1] and [Percona blog][2], and implemented by [MySQL 8.0][3].
 
-MySQL 8.0 has implemented these functions. These UDF functions provide the same functionality for earlier versions, and for MariaDB which is planning to [not implement][6] these functions in favour of a [UUID data type][7]. Once those changes are made these functions may not be needed if they provide these function names as syntactic sugar around the CAST syntax.
+These UDF functions provide the same functionality as MySQL 8.0 for earlier versions of MariaDB and earlier versions of MySQL.
+
+MariaDB is planning to [not implement][6] these functions in favour of a [UUID data type][7]. Once those changes are made these functions may not be needed if they provide these function names as syntactic sugar around the CAST syntax.
 
 As described in the above articles there are few problems with UUID:
 * UUID has 36 characters which makes it bulky.
