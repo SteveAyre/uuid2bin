@@ -24,7 +24,7 @@ However v4 UUIDs are completely random with no timestamp component so cannot ben
 This module includes two functions to convert a UUID into the ordered binary format and the other way around.
 
 The functions are:
-- `is_uuid` - check if a string is a valid UUID of the 3 formats supported by MySQL 8.0
+- `is_uuid(string)` - check if a string is a valid UUID of the 3 formats supported by MySQL 8.0
 - `uuid_to_bin(string)` `uuid_to_bin(string, swap_flag)` - convert a uuid string into the binary format, optionally reordering the timestamp if swap_flag is 1
 - `bin_to_uuid(string)` `bin_to_uuid(string, swap_flag)` - convert the binary format into the uuid string, optionally reordering the timestamp if swap_flag is 1
 
