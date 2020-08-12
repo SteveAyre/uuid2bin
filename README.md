@@ -128,12 +128,12 @@ SELECT BENCHMARK(@loops, UuidFromBin(UuidToBin(@uuid)));
 
 ```
 
-|Function                           | Time for 1M executions    |
-|:---------------------------------:|:-------------------------:|
-| UUID_TO_BIN + BIN_TO_UUID noswap  | 9.47 sec                  |
-| UUID_TO_BIN + BIN_TO_UUID swap    | 9.79 sec                  |
-| UUID_TO_BIN_OLD + BIN_TO_UUID_OLD | 30.96 sec                 |
-| UuidToBin + UuidFromBin           | 9 min 31.44 sec           |
+|Function                           | Reorder timestamp         | Time for 1M executions    |
+|:---------------------------------:|:-------------------------:|:-------------------------:|
+| UUID_TO_BIN + BIN_TO_UUID         | No                        | 9.47 sec                  |
+| UUID_TO_BIN + BIN_TO_UUID         | Yes                       | 9.79 sec                  |
+| UUID_TO_BIN_OLD + BIN_TO_UUID_OLD | Yes                       | 30.96 sec                 |
+| UuidToBin + UuidFromBin           | Yes                       | 9 min 31.44 sec           |
 
 ###### Conclusion
 
