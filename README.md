@@ -4,8 +4,9 @@
 
 MySQL UDF functions implemented in C++ for storing UUID's in the optimal way as described in [MariaDB blog][1] and [Percona blog][2].
 
-As described in the above articles there are few problems with UUID:
+MySQL 8.0 has implemented these functions. These UDF functions provide the same functionality for earlier versions, and for MariaDB which is planning to [not implement][6] these functions in favour of a [UUID data type][7]. Once those changes are made these functions may not be needed if they provide these function names as syntactic sugar around the CAST syntax.
 
+As described in the above articles there are few problems with UUID:
 - UUID has 36 characters which makes it bulky.
 - InnoDB stores data in the PRIMARY KEY order and all the secondary keys also contain PRIMARY KEY. So having UUID as PRIMARY KEY makes the index bigger which can not be fit into the memory
 - Inserts are random and the data is scattered.
@@ -17,20 +18,21 @@ The articles explains how to store UUID in an efficient way by re-arranging time
 This module includes two functions to convert a UUID into the ordered binary format and the other way around.
 
 The functions are:
-- `uuid_to_bin` - convert a uuid string into the ordered binary format
-- `bin_to_uuid` - convert the ordered binary format into the uuid string
+- `is_uuid` - check if a string is a valid UUID of the 3 formats supported by MySQL 8.0
+- `uuid_to_bin` - convert a uuid string into the binary format, optionally performing timestamp bit swapping
+- `bin_to_uuid` - convert the binary format into the uuid string, optionally performing timestamp bit swapping
 
-Both function accept as second parameter 0 or 1 in order to know if dash is included. Sometimes in applications
-you might need the UUID without the dashes. By default dash is expected.
+The output of bin_to_uuid is the dashed format to be compatible with the MySQL 8.0 version.
 
 #### Compilation
 
-Just run `make compile` in the project root. This should work on linux and Mac OS X. Compiling scripts are not
+Just run `make` in the project root. This should work on linux and Mac OS X. Compiling scripts are not
 tested for other platforms.
 
 #### Installation
 
-After you compile you must install it and tell MySQL about it ([More details][3]).
+After you compile you must install it and tell MySQL about it ([More details][4]).
+
 First you need to locate the plugin directory. This directory is given by the value of the `plugin_dir` system variable.
 Usually located in `/usr/lib/mysql/plugin/` in linux. Use `SHOW VARIABLES LIKE 'plugin_dir';` to locate this.
 
@@ -38,6 +40,7 @@ Usually located in `/usr/lib/mysql/plugin/` in linux. Use `SHOW VARIABLES LIKE '
 - Inform mysql about the new functions by running:
 
 ```sql
+CREATE FUNCTION is_uuid RETURNS INTEGER SONAME 'uuid2bin.so';
 CREATE FUNCTION uuid_to_bin RETURNS STRING SONAME 'uuid2bin.so';
 CREATE FUNCTION bin_to_uuid RETURNS STRING SONAME 'uuid2bin.so';
 ```
@@ -45,10 +48,19 @@ CREATE FUNCTION bin_to_uuid RETURNS STRING SONAME 'uuid2bin.so';
 #### Testing
 
 ```
+SELECT IS_UUID('6ccd780c-baba-1026-9564-0040f4311e29') = 1;
+SELECT IS_UUID('6ccd780cbaba102695640040f4311e29') = 1;
+SELECT IS_UUID('{6ccd780c-baba-1026-9564-0040f4311e29}') = 1;
+SELECT IS_UUID(NULL) IS NULL;
+SELECT IS_UUID(123) = 0;
+SELECT IS_UUID('invalid') = 0;
 SELECT BIN_TO_UUID(UUID_TO_BIN('6ccd780c-baba-1026-9564-0040f4311e29')) = '6ccd780c-baba-1026-9564-0040f4311e29';
-SELECT BIN_TO_UUID(UUID_TO_BIN('6ccd780c-baba-1026-9564-0040f4311e29'), 0) = '6ccd780cbaba102695640040f4311e29';
-SELECT BIN_TO_UUID(UUID_TO_BIN('6ccd780cbaba102695640040f4311e29', 0), 0) = '6ccd780cbaba102695640040f4311e29';
-SELECT BIN_TO_UUID(UUID_TO_BIN('6ccd780cbaba102695640040f4311e29', 0), 1) = '6ccd780c-baba-1026-9564-0040f4311e29';
+SELECT BIN_TO_UUID(UUID_TO_BIN('6ccd780c-baba-1026-9564-0040f4311e29', 0), 0) = '6ccd780c-baba-1026-9564-0040f4311e29';
+SELECT BIN_TO_UUID(UUID_TO_BIN('6ccd780c-baba-1026-9564-0040f4311e29', 1), 1) = '6ccd780c-baba-1026-9564-0040f4311e29';
+SELECT BIN_TO_UUID(UUID_TO_BIN('6ccd780cbaba102695640040f4311e29', 0), 0) = '6ccd780c-baba-1026-9564-0040f4311e29';
+SELECT BIN_TO_UUID(UUID_TO_BIN('6ccd780cbaba102695640040f4311e29', 1), 1) = '6ccd780c-baba-1026-9564-0040f4311e29';
+SELECT BIN_TO_UUID(UUID_TO_BIN('{6ccd780c-baba-1026-9564-0040f4311e29}', 0), 0) = '6ccd780c-baba-1026-9564-0040f4311e29';
+SELECT BIN_TO_UUID(UUID_TO_BIN('{6ccd780c-baba-1026-9564-0040f4311e29}', 1), 1) = '6ccd780c-baba-1026-9564-0040f4311e29';
 SELECT BIN_TO_UUID(UUID_TO_BIN(NULL)) IS NULL;
 SELECT BIN_TO_UUID(UUID_TO_BIN('invalid')) IS NULL;
 ```
@@ -56,6 +68,8 @@ SELECT BIN_TO_UUID(UUID_TO_BIN('invalid')) IS NULL;
 #### Benchmarks
 
 We run 10 million times each function and compare the results with the same methods implemented as stored functions.
+
+Performance was also compared to an alternative implementation by [silviucpp][5] patched with UUID_TO_BIN_OLD and BIN_TO_UUID_OLD names to avoid a conflict.
 
 ###### Stored functions version:
 
@@ -85,29 +99,32 @@ DELIMITER ;
 
 ```
 SET @loops=10000000;
-SET @uuid='6ccd780c-baba-1026-9564-0040f4311e29';
-SET @bin=UUID_TO_BIN(@uuid);
+SET @uuid=UUID();
 
-SELECT BENCHMARK(@loops, UUID_TO_BIN(@uuid));
-SELECT BENCHMARK(@loops, UuidToBin(@uuid));
-
-SELECT BENCHMARK(@loops, BIN_TO_UUID(@bin));
-SELECT BENCHMARK(@loops, UuidFromBin(@bin));
+SELECT BENCHMARK(@loops, BIN_TO_UUID(UUID_TO_BIN(@uuid, 0), 0));
+SELECT BENCHMARK(@loops, BIN_TO_UUID(UUID_TO_BIN(@uuid, 1), 1));
+SELECT BENCHMARK(@loops, BIN_TO_UUID_OLD(UUID_TO_BIN_OLD(@uuid)));
+SELECT BENCHMARK(@loops, UuidFromBin(UuidToBin(@uuid)));
 
 ```
 
-|Function            | Time for 1M executions
-|:------------------:|:-------------------------:|
-| UUID_TO_BIN        | 3.1 sec 			         |
-| UuidToBin          | 1 min 9.88 sec            |
-| BIN_TO_UUID        | 3.11 sec                  |
-| UuidFromBin        | 1 min 30.27 sec           |
+|Function                           | Time for 1M executions    |
+|:---------------------------------:|:-------------------------:|
+| UUID_TO_BIN + BIN_TO_UUID noswap  | 9.47 sec                  |
+| UUID_TO_BIN + BIN_TO_UUID swap    | 9.79 sec                  |
+| UUID_TO_BIN_OLD + BIN_TO_UUID_OLD | 30.96 sec                 |
+| UuidToBin + UuidFromBin           | 9 min 31.44 sec           |
 
 ###### Conclusion
 
-As expected the UDF versions are much faster than the stored functions.
+As expected the UDF versions are much faster than the stored functions. They are also a third of the speed of the earlier implementation.
 
+Timestamp bit swapping understandably incurs a performance penalty of ~5%. However the greatly improved index performance should more than compensate for this.
 
 [1]:https://mariadb.com/kb/en/library/guiduuid-performance/
 [2]:https://www.percona.com/blog/2014/12/19/store-uuid-optimized-way/
-[3]:http://dev.mysql.com/doc/refman/5.7/en/udf-compiling.html
+[3]:https://dev.mysql.com/doc/refman/8.0/en/miscellaneous-functions.html
+[4]:http://dev.mysql.com/doc/refman/5.7/en/udf-compiling.html
+[5]:https://github.com/silviucpp/uuid2bin 
+[6]:https://jira.mariadb.org/browse/MDEV-15854
+[7]:https://jira.mariadb.org/browse/MDEV-4958
