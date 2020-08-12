@@ -21,7 +21,7 @@ The articles explains how to store UUID in an efficient way by converting to BIN
 
 However v4 UUIDs are completely random with no timestamp component so cannot benefit from timestamp reordering. These UUIDs can still be reordered for storage, but it has a performance cost to perform the byte swap with no benefit.
 
-#### Functions
+### Functions
 
 This module includes functions to convert a UUID into the binary format and the other way around, and a function to validate UUIDs in their string form.
 
@@ -45,7 +45,9 @@ The functions are:
 
 Note that all these functions are deterministic and therefore replication safe.
 
-#### Compilation
+### Deployment
+
+#### Building
 
 Just run `make` in the project root.
 
@@ -87,11 +89,11 @@ SELECT BIN_TO_UUID(UUID_TO_BIN(NULL)) IS NULL;
 SELECT BIN_TO_UUID(UUID_TO_BIN('invalid')) IS NULL;
 ```
 
-#### Benchmarks
+### Benchmarks
 
 We run each function 10 million times and compare the results with the alternative stored functions above and UDF implementation by [silviucpp][5] (patched with UUID_TO_BIN_OLD and BIN_TO_UUID_OLD names to avoid a conflict).
 
-###### Stored functions version:
+#### Stored functions version:
 
 ```sql
 DELIMITER //
@@ -115,7 +117,7 @@ CREATE FUNCTION UuidFromBin(_bin BINARY(16))
 DELIMITER ;
 ```
 
-###### Results
+#### Results
 
 ```
 SET @loops=10000000;
@@ -135,7 +137,7 @@ SELECT BENCHMARK(@loops, UuidFromBin(UuidToBin(@uuid)));
 | UUID_TO_BIN_OLD + BIN_TO_UUID_OLD | Yes                       | 30.96 sec                 |
 | UuidToBin + UuidFromBin           | Yes                       | 9 min 31.44 sec           |
 
-###### Conclusion
+### Conclusion
 
 As expected the UDF versions are much faster than the stored functions. They are also a third of the speed of the earlier implementation.
 
