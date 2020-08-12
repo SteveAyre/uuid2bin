@@ -1,6 +1,6 @@
 # MySQL uuid to binary UDF functions
 
-### Genera]l info
+### General info
 
 MySQL UDF functions for storing UUID's in the optimal way as described in [MariaDB blog][1] and [Percona blog][2], and implemented by [MySQL 8.0][3].
 
@@ -23,16 +23,27 @@ However v4 UUIDs are completely random with no timestamp component so cannot ben
 
 #### Functions
 
-This module includes two functions to convert a UUID into the ordered binary format and the other way around.
+This module includes functions to convert a UUID into the binary format and the other way around, and a function to validate UUIDs in their string form.
+
+The functions all attempt to be compatible for input and output with the MySQL 8.0 functions.
 
 The functions are:
-- `is_uuid(string)` - check if a string is a valid UUID of the 3 formats supported by MySQL 8.0
-- `uuid_to_bin(string)` `uuid_to_bin(string, swap_flag)` - convert a uuid string into the binary format, optionally reordering the timestamp if swap_flag is 1
-- `bin_to_uuid(string)` `bin_to_uuid(string, swap_flag)` - convert the binary format into the uuid string, optionally reordering the timestamp if swap_flag is 1
+* `is_uuid(string)`
+  * Check if a string is a valid UUID of the 3 formats supported by MySQL 8.0.
+    * 6ccd780cbaba102695640040f4311e29
+    * 6ccd780c-baba-1026-9564-0040f4311e29
+    * {6ccd780c-baba-1026-9564-0040f4311e29}
+  * Returns 0 or 1, or NULL if string is null.
+* `uuid_to_bin(string)` / `uuid_to_bin(string, swap_flag)`
+  * Convert a UUID string (see above) into the binary format.
+  * Optionally reorder the timestamp if swap_flag is 1 (the default is 0).
+  * Returns a BINARY(16)
+* `bin_to_uuid(string)` / `bin_to_uuid(string, swap_flag)`
+  * Convert the binary format into the UUID string
+  * Optionally reorders the timestamp if swap_flag is 1 (the default is 0).
+  * Returns a CHAR(36), eg 6ccd780c-baba-1026-9564-0040f4311e29
 
-The output of bin_to_uuid is the dashed format to be compatible with the MySQL 8.0 version.
-
-Note that all these functions are deterministic.
+Note that all these functions are deterministic and therefore replication safe.
 
 #### Compilation
 
@@ -78,9 +89,7 @@ SELECT BIN_TO_UUID(UUID_TO_BIN('invalid')) IS NULL;
 
 #### Benchmarks
 
-We run 10 million times each function and compare the results with the same methods implemented as stored functions.
-
-Performance was also compared to an alternative implementation by [silviucpp][5] patched with UUID_TO_BIN_OLD and BIN_TO_UUID_OLD names to avoid a conflict.
+We run each function 10 million times and compare the results with the alternative stored functions above and UDF implementation by [silviucpp][5] (patched with UUID_TO_BIN_OLD and BIN_TO_UUID_OLD names to avoid a conflict).
 
 ###### Stored functions version:
 
@@ -131,6 +140,8 @@ SELECT BENCHMARK(@loops, UuidFromBin(UuidToBin(@uuid)));
 As expected the UDF versions are much faster than the stored functions. They are also a third of the speed of the earlier implementation.
 
 Timestamp byte swapping understandably incurs a performance penalty of ~5%. However the greatly improved index performance should more than compensate for this.
+
+The code is compatible with code written for MySQL 8.0, which the earlier silviucpp version is not as it always reorders the timestamp in UUID_TO_BIN and has a different meaning for the 2nd argument in BIN_TO_UUID.
 
 [1]:https://mariadb.com/kb/en/library/guiduuid-performance/
 [2]:https://www.percona.com/blog/2014/12/19/store-uuid-optimized-way/
