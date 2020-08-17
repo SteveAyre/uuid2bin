@@ -43,7 +43,9 @@ The functions are:
   * Optionally reorders the timestamp if swap_flag is 1 (the default is 0).
   * Returns a CHAR(36), eg 6ccd780c-baba-1026-9564-0040f4311e29
 
-Note that all these functions are deterministic and therefore would be replication safe. However MySQL/MariaDB do not trust UDFs and mark them as unsafe statements. This affects how replication treats queries [depending on logging format][8].
+#### Replication
+
+Note that all these functions are deterministic and therefore would be replication safe. However MySQL/MariaDB do not trust UDFs and mark them as unsafe statements. This affects how replication treats queries [depending on logging format][8]. In row-based or mixed modes the query will be logged in row format with the result; in statement mode the query will log as normal and execute correctly but produce a warning. It is therefore advisable to use either the row-based or mixed format.
 
 ### Deployment
 
