@@ -43,7 +43,7 @@ The functions are:
   * Optionally reorders the timestamp if swap_flag is 1 (the default is 0).
   * Returns a CHAR(36), eg 6ccd780c-baba-1026-9564-0040f4311e29
 
-Note that all these functions are deterministic and therefore replication safe.
+Note that all these functions are deterministic and therefore would be replication safe. However MySQL/MariaDB do not trust UDFs and mark them as unsafe statements. This affects how replication treats queries [depending on logging format][8].
 
 ### Deployment
 
@@ -152,3 +152,4 @@ The code is compatible with code written for MySQL 8.0, which the earlier silviu
 [5]:https://github.com/silviucpp/uuid2bin 
 [6]:https://jira.mariadb.org/browse/MDEV-15854
 [7]:https://jira.mariadb.org/browse/MDEV-4958
+[8]:https://mariadb.com/kb/en/unsafe-statements-for-statement-based-replication/
