@@ -45,7 +45,9 @@ The functions are:
 
 #### Replication
 
-Note that all these functions are deterministic and therefore would be replication safe. However MySQL/MariaDB do not trust UDFs and mark them as unsafe statements. This affects how replication treats queries [depending on logging format][8]. In row-based or mixed modes the query will be logged in row format with the result; in statement mode the query will log as normal and execute correctly but produce a warning. It is therefore advisable to use either the row-based or mixed format.
+Note that all these functions are deterministic and therefore would be replication safe. However MySQL/MariaDB do not trust UDFs and mark them as unsafe statements. This affects how replication treats queries [depending on logging format][8].
+
+In row-based or mixed modes the query will be logged in row format with the result; in statement mode the query will log as normal and execute correctly but produce a warning. It is therefore advisable to use either the row-based or mixed format.
 
 ### Deployment
 
